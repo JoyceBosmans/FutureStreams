@@ -11,4 +11,4 @@ PCRGLOBWB_config:
 Contains an example of a configuration file used in the PCR-GLOBWB simulations. In this example, the ipsl - rcp6.0 simulation is started, using initial conditions from the end of the ipsl historic simulation. 
 
 Warming_levels:
-Contains a text file with the year in which the 30-year running mean of air temperature crosses a certain warming level (1.5, 2.0, 3.2 and 4.5 degrees, as used in Barbarossa et al. 2021, see their Supplementary Information). 
+Contains a text file with the year in which the 30-year running mean of air temperature of each GCM- RCP-combination crosses a certain warming level (1.5, 2.0, 3.2 and 4.5 degrees, as used in Barbarossa et al. 2021, see their Supplementary Information). 
