@@ -226,7 +226,7 @@ ggsave('figure4.pdf',all_plot,width = 200,height = 263,dpi = 300,units = 'mm', s
 ggsave('figure4-Q-max.pdf',Q_max_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
 ggsave('figure4-Q-wm.pdf',Q_wm_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
 ggsave('figure4-Q-dm.pdf',Q_dm_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
-gsave('figure4-Q-mean.pdf',Q_mean_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-Q-mean.pdf',Q_mean_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
 
 ggsave('figure4-WT-hq.pdf',WT_hq_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
 ggsave('figure4-WT-cq.pdf',WT_cq_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
