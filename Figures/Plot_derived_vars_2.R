@@ -103,6 +103,22 @@ lim <- c(Tlim_lo-Tbreaks,Tlim_up+Tbreaks)
 
 Q_max_plot <- plot_function(inset,color_scheme,br,lab,lim) 
 
+### Q-mean ###
+stack_Q_mean <- stack()
+for (gcm in climate_models){
+	Q_mean_hist <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	Q_mean_fut  <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	Q_mean_diff <- log10(Q_mean_fut) - log10(Q_mean_hist)	#TO DO: log10
+	stack_Q_mean <- addLayer(stack_Q_mean,Q_mean_diff)
+}
+mean_of_var <- calc(stack_Q_mean, fun=mean)
+
+inset <- inset_function(mean_of_var)
+
+# plot using same color scheme as Q-max
+Q_mean_plot <- plot_function(inset,color_scheme,br,lab,lim)
+
+
 ### Q-wm ###
 stack_Q_wm <- stack()
 for (gcm in climate_models){
@@ -117,6 +133,22 @@ inset <- inset_function(mean_of_var)
 
 # plot using same color scheme as Q-max
 Q_wm_plot <- plot_function(inset,color_scheme,br,lab,lim)
+
+
+### Q-dm ###
+stack_Q_dm <- stack()
+for (gcm in climate_models){
+	Q_dm_hist <- raster(paste0(inputdir,'Q-dm/Q-dm_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	Q_dm_fut  <- raster(paste0(inputdir,'Q-dm/Q-dm_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	Q_dm_diff <- log10(Q_dm_fut) - log10(Q_dm_hist)	#TO DO: log10
+	stack_Q_dm <- addLayer(stack_Q_dm,Q_dm_diff)
+}
+mean_of_var <- calc(stack_Q_dm, fun=mean)
+
+inset <- inset_function(mean_of_var)
+
+# plot using same color scheme as Q-max
+Q_dm_plot <- plot_function(inset,color_scheme,br,lab,lim)
 
 ### WT-hq ###
 stack_WT_hq <- stack()
@@ -141,7 +173,20 @@ lab <- paste0(c(paste0('<',Tlim_lo),seq(Tlim_lo,0,1),paste0('+',seq(1,Tlim_up,1)
 lim <- c(Tlim_lo-1,Tlim_up+1)
 
 WT_hq_plot <- plot_function(inset,color_scheme,br,lab,lim)
-# NOTE: color bar is marked correctly, but the scale is NOT set to the correct limits (so here: seems to be set to -1 to 15, with only 0-5 labeled according to br / labs)
+
+### WT-cq ###
+stack_WT_cq <- stack()
+for (gcm in climate_models){
+	WT_cq_hist <- raster(paste0(inputdir,'WT-cq/WT-cq_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	WT_cq_fut  <- raster(paste0(inputdir,'WT-cq/WT-cq_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	WT_cq_diff <- WT_cq_fut - WT_cq_hist	
+	stack_WT_cq <- addLayer(stack_WT_cq,WT_cq_diff)
+}
+mean_of_var <- calc(stack_WT_cq, fun=mean)
+
+inset <- inset_function(mean_of_var)
+
+WT_cq_plot <- plot_function(inset,color_scheme,br,lab,lim)
 
 ### WT-range ###
 stack_WT_range <- stack()
@@ -158,6 +203,20 @@ inset <- inset_function(mean_of_var)
 # plot using same color settings as WT-hq
 WT_range_plot <- plot_function(inset,color_scheme,br,lab,lim)
 
+### WT-mean ###
+stack_WT_mean <- stack()
+for (gcm in climate_models){
+	WT_mean_hist <- raster(paste0(inputdir,'WT-mean/WT-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	WT_mean_fut  <- raster(paste0(inputdir,'WT-mean/WT-mean_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	WT_mean_diff <- WT_mean_fut - WT_mean_hist	
+	stack_WT_mean <- addLayer(stack_WT_mean,WT_mean_diff)
+}
+mean_of_var <- calc(stack_WT_mean, fun=mean)
+
+inset <- inset_function(mean_of_var)
+
+WT_mean_plot <- plot_function(inset,color_scheme,br,lab,lim)
+
 all_plot <- ggarrange(Q_max_plot, Q_wm_plot, WT_hq_plot, WT_range_plot, 
           ncol = 1, nrow = 4
           )
@@ -166,5 +225,10 @@ ggsave('figure4.pdf',all_plot,width = 200,height = 263,dpi = 300,units = 'mm', s
 
 ggsave('figure4-Q-max.pdf',Q_max_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
 ggsave('figure4-Q-wm.pdf',Q_wm_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-Q-dm.pdf',Q_dm_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+gsave('figure4-Q-mean.pdf',Q_mean_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+
 ggsave('figure4-WT-hq.pdf',WT_hq_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WT-cq.pdf',WT_cq_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
 ggsave('figure4-WTrange.pdf',WT_range_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WT-mean.pdf',WT_mean_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
