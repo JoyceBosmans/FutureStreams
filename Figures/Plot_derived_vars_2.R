@@ -1,6 +1,7 @@
 library(raster)
 library(sf)
 library(ggplot2)
+library(RColorBrewer)
 library(inlmisc)
 library(foreach)
 library(ggpubr)
@@ -18,10 +19,10 @@ inset_function <- function(mean_of_var){
 }}
 
 ### plot function
-plot_function <- function(inset,color_scheme,br,lab){
+plot_function <- function(inset,color_scheme,br,lab,lim){
   ggplot() +
   geom_tile(data = inset, aes(x=x, y=y, fill=V1), alpha=0.8) +
-  scale_fill_gradientn(colors = color_scheme,breaks = br,labels = lab,na.value = 'transparent') +
+  scale_fill_gradientn(colors = color_scheme,breaks = br,labels = lab,limits = lim,na.value = 'transparent') +
   facet_wrap('inset_no',nrow = 1, scales = 'free') + 
   coord_cartesian(expand = F) +
   ylab(' ') +
@@ -85,18 +86,22 @@ for (gcm in climate_models){
 }
 mean_of_var <- calc(stack_Q_max, fun=mean)
 
-inset <- inset_function(mean_of_var)
-
 #boundaries / ranges for plotting Q-max
 Tbreaks = 0.1
 Tlim_up = 0.5
 Tlim_lo = -0.5
 
+mean_of_var[mean_of_var > Tlim_up] <- Tlim_up+Tbreaks
+mean_of_var[mean_of_var < Tlim_lo] <- Tlim_lo-Tbreaks
+
+inset <- inset_function(mean_of_var)
+
 color_scheme <- inlmisc::GetColors(length(seq(Tlim_lo,Tlim_up,Tbreaks)),scheme='sunset',reverse = T)
 br <- seq((Tlim_lo-Tbreaks),(Tlim_up+Tbreaks),Tbreaks)
 lab <- paste0(c(paste0('<',Tlim_lo),seq(Tlim_lo,0,Tbreaks),paste0('+',seq(Tbreaks,Tlim_up,Tbreaks)),paste0('>',Tlim_up)),'')
+lim <- c(Tlim_lo-Tbreaks,Tlim_up+Tbreaks)
 
-Q_max_plot <- plot_function(inset,color_scheme,br,lab) 
+Q_max_plot <- plot_function(inset,color_scheme,br,lab,lim) 
 
 ### Q-wm ###
 stack_Q_wm <- stack()
@@ -111,7 +116,7 @@ mean_of_var <- calc(stack_Q_wm, fun=mean)
 inset <- inset_function(mean_of_var)
 
 # plot using same color scheme as Q-max
-Q_wm_plot <- plot_function(inset,color_scheme,br,lab)
+Q_wm_plot <- plot_function(inset,color_scheme,br,lab,lim)
 
 ### WT-hq ###
 stack_WT_hq <- stack()
@@ -133,8 +138,9 @@ Tlim_lo = -5
 color_scheme <- inlmisc::GetColors(length(Tlim_lo:Tlim_up),scheme='sunset')
 br <- seq((Tlim_lo-1),(Tlim_up+1),1)
 lab <- paste0(c(paste0('<',Tlim_lo),seq(Tlim_lo,0,1),paste0('+',seq(1,Tlim_up,1)),paste0('>',Tlim_up)),'°C')
-    
-WT_hq_plot <- plot_function(inset,color_scheme,br,lab)
+lim <- c(Tlim_lo-1,Tlim_up+1)
+
+WT_hq_plot <- plot_function(inset,color_scheme,br,lab,lim)
 # NOTE: color bar is marked correctly, but the scale is NOT set to the correct limits (so here: seems to be set to -1 to 15, with only 0-5 labeled according to br / labs)
 
 ### WT-range ###
@@ -145,15 +151,20 @@ for (gcm in climate_models){
 	WT_range_diff <- WT_range_fut - WT_range_hist	
 	stack_WT_range <- addLayer(stack_WT_range,WT_range_diff)
 }
-mean_of_var <- calc(stack_WT_hq, fun=mean)
+mean_of_var <- calc(stack_WT_range, fun=mean)
 
 inset <- inset_function(mean_of_var)
 
 # plot using same color settings as WT-hq
-WT_range_plot <- plot_function(inset,color_scheme,br,lab)
+WT_range_plot <- plot_function(inset,color_scheme,br,lab,lim)
 
-ggarrange(Q_max_plot, Q_wm_plot, WT_hq_plot, WT_range_plot, 
+all_plot <- ggarrange(Q_max_plot, Q_wm_plot, WT_hq_plot, WT_range_plot, 
           ncol = 1, nrow = 4
           )
           
+ggsave('figure4.pdf',all_plot,width = 200,height = 263,dpi = 300,units = 'mm', scale = 5)#, limitsize = F)
 
+ggsave('figure4-Q-max.pdf',Q_max_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-Q-wm.pdf',Q_wm_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WT-hq.pdf',WT_hq_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WTrange.pdf',WT_range_plot,width = 75,height = 75,dpi = 300,units = 'mm', scale = 5, limitsize=F)
