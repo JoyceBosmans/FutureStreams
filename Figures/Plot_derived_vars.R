@@ -1,13 +1,56 @@
 library(raster)
 library(sf)
 library(ggplot2)
-#library(rgeos)
-#library(ncdf4)
+library(RColorBrewer)
 library(inlmisc)
 library(foreach)
 library(ggpubr)
+library(plyr) 
 
 inputdir = '/vol/milkundata/FutureStreams/'	# Q-max, Q-wm, WT-hq, WT-range
+
+### inset function
+inset_function <- function(mean_of_var){
+	foreach(j = 1:length(insets_ext),.combine = 'rbind') %do% {
+  as(mean_of_var %>% mask(.,qm) %>% crop(insets_ext[[j]]), "SpatialPixelsDataFrame") %>%
+    as.data.frame(.) %>%
+    mutate(inset_no = j) #%>%
+    #dplyr::select(x,y,value = V1,inset_no) %>%
+    #filter(!is.na(value))
+}}
+
+### plot function
+plot_function <- function(inset,color_scheme,br,lab,lim,ylab_text){
+  ggplot() +
+  geom_tile(data = inset, aes(x=x, y=y, fill=V1), alpha=0.8) +
+  scale_fill_gradientn(colors = color_scheme,breaks = br,labels = lab,limits = lim,na.value = 'transparent') +
+  facet_wrap('inset_no',nrow = 1, scales = 'free') + 
+  coord_cartesian(expand = F) +
+  ylab(ylab_text) + 
+  theme_minimal(base_size = 50, base_rect_size = 50) +
+  theme(
+    #text = element_text(size = 50),
+    panel.background = element_rect(fill = 'black'),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.5, "lines"),
+    # axis.text = element_blank(),		# theme legend
+    axis.ticks = element_line(color = 'black',size=1),
+    axis.title.x = element_blank(),
+    axis.text=element_text(size=12),
+    legend.position = 'bottom',
+    legend.key.width = unit(9,'line'),
+    legend.key.height = unit(2,'line'),
+    legend.margin=margin(-25,-15,-15,-15),
+    legend.text=element_text(size=24),
+    strip.background = element_rect('white'),
+    strip.background.x = element_blank(),
+    strip.background.y = element_blank(),
+    strip.text = element_blank(),
+    legend.title = element_blank(),
+    aspect.ratio = 1,
+    plot.margin = margin(0, 1, 0, 0, "cm")
+  ) }
 
 # bbox for 3 insets
 insets_c <- data.frame(
@@ -15,16 +58,11 @@ insets_c <- data.frame(
   y = c(-2.5,45,24.5)
 )
 
-#1 -57.257 -2.622	## -57.2083, -2.625 Amazone
-#2 20.132 45.210	## 20.125, 45.2083 Danube
-#3 88.380 24.376	## 88.375 24.375 Ganges
-
 insets_side = 4
 insets_ext <- foreach(i = 1:nrow(insets_c)) %do% extent(c(insets_c[i,'x']-insets_side, insets_c[i,'x']+insets_side,
                                                           insets_c[i,'y']-insets_side, insets_c[i,'y']+insets_side))
                                                           
 ### Q-mean from hist as mask
-
 climate_models <- c('gfdl','hadgem','ipsl','miroc','noresm')
 
 stack_Q_mean <- stack()
@@ -34,150 +72,179 @@ for (gcm in climate_models){
 }
 mean_Q_mean <- calc(stack_Q_mean, fun=mean)
 
-cutoff <- 50
+cutoff <- 10
 qm               <- mean_Q_mean
 qm[qm < cutoff]  <- NA
 qm[qm >= cutoff] <- 1
-plot(qm)
 
-### Q-max
-stack_Q_max <- stack()
+### Q-max ###
+stack_Q_hist <- stack()
+stack_Q_fut  <- stack()
 for (gcm in climate_models){
 	Q_max_hist <- raster(paste0(inputdir,'Q-max/Q-max_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
 	Q_max_fut  <- raster(paste0(inputdir,'Q-max/Q-max_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
-	Q_max_diff <- log10(Q_max_fut) - log10(Q_max_hist)	#TO DO: log10
-	stack_Q_max <- addLayer(stack_Q_max,Q_max_diff)
+	stack_Q_hist <- addLayer(stack_Q_hist,Q_max_hist)
+	stack_Q_fut  <- addLayer(stack_Q_fut,Q_max_fut)
 }
-mean_Q_max <- calc(stack_Q_max, fun=mean)
-
-#mask grid cells with mean Q below cutoff
-mean_Q_max <- mean_Q_max * qm
-
-df_Q_max_1 <- rasterToPoints(crop(mean_Q_max,insets_ext[[1]]), spatial=TRUE) %>% as.data.frame()
-df_Q_max_2 <- rasterToPoints(crop(mean_Q_max,insets_ext[[2]]), spatial=TRUE) %>% as.data.frame()
-df_Q_max_3 <- rasterToPoints(crop(mean_Q_max,insets_ext[[3]]), spatial=TRUE) %>% as.data.frame()
-
-df_Q_max_1$`Q-max` <- df_Q_max_1$Var.1
-df_Q_max_2$`Q-max` <- df_Q_max_2$Var.1
-df_Q_max_3$`Q-max` <- df_Q_max_3$Var.1
+mean_of_var <- log10(calc(stack_Q_fut, fun=mean)) - log10(calc(stack_Q_hist, fun=mean))
 
 #boundaries / ranges for plotting Q-max
 Tbreaks = 0.1
 Tlim_up = 0.5
 Tlim_lo = -0.5
 
+mean_of_var[mean_of_var > Tlim_up] <- Tlim_up+Tbreaks
+mean_of_var[mean_of_var < Tlim_lo] <- Tlim_lo-Tbreaks
+
+inset <- inset_function(mean_of_var)
+
 color_scheme <- inlmisc::GetColors(length(seq(Tlim_lo,Tlim_up,Tbreaks)),scheme='sunset',reverse = T)
 br <- seq((Tlim_lo-Tbreaks),(Tlim_up+Tbreaks),Tbreaks)
 lab <- paste0(c(paste0('<',Tlim_lo),seq(Tlim_lo,0,Tbreaks),paste0('+',seq(Tbreaks,Tlim_up,Tbreaks)),paste0('>',Tlim_up)),'')
+lim <- c(Tlim_lo-Tbreaks,Tlim_up+Tbreaks)
 
-df_Q_max_1$t <- df_Q_max_1$`Q-max`
-df_Q_max_1$`Q-max`[df_Q_max_1$`Q-max` > Tlim_up] <- Tlim_up+Tbreaks
-df_Q_max_1$`Q-max`[df_Q_max_1$`Q-max` < Tlim_lo] <- Tlim_lo-Tbreaks
+Q_max_plot <- plot_function(inset,color_scheme,br,lab,lim,'Q-max') 
 
-Qmax1 <- ggplot() + geom_raster(data = df_Q_max_1 , aes(x = x, y = y, fill=`Q-max`)) + ylab('Q-max') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.3, -.3, 0, "cm")) + scale_color_gradientn(colours = 'rainbow' ,breaks = br,labels = lab, na.value = 'transparent')
-Qmax2 <- ggplot() + geom_raster(data = df_Q_max_2 , aes(x = x, y = y, fill=`Q-max`)) + ylab('') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm")) + scale_color_gradientn(colors = color_scheme,values=br)
-Qmax3 <- ggplot() + geom_raster(data = df_Q_max_3 , aes(x = x, y = y, fill=`Q-max`)) + ylab('') + xlab('')  + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm")) + scale_color_gradientn(colors = color_scheme,values=br)
-    
-    
-### Q-wm
-stack_Q_wm <- stack()
+stack_Q_hist <- stack()
+stack_Q_fut  <- stack()
+for (gcm in climate_models){
+	Q_mean_hist  <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	Q_mean_fut   <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	stack_Q_hist <- addLayer(stack_Q_hist,Q_mean_hist)
+	stack_Q_fut  <- addLayer(stack_Q_fut,Q_mean_fut)
+}
+mean_of_var <- log10(calc(stack_Q_fut, fun=mean)) - log10(calc(stack_Q_hist, fun=mean))
+
+inset <- inset_function(mean_of_var)
+
+# plot using same color scheme as Q-max
+Q_mean_plot <- plot_function(inset,color_scheme,br,lab,lim,'Q-mean')
+
+### Q-wm ###
+stack_Q_hist <- stack()
+stack_Q_fut  <- stack()
 for (gcm in climate_models){
 	Q_wm_hist <- raster(paste0(inputdir,'Q-wm/Q-wm_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
 	Q_wm_fut  <- raster(paste0(inputdir,'Q-wm/Q-wm_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
-	Q_wm_diff <- log10(Q_wm_fut) - log10(Q_wm_hist)	#TO DO: log10
-	stack_Q_wm <- addLayer(stack_Q_wm,Q_wm_diff)
+	stack_Q_hist <- addLayer(stack_Q_hist,Q_wm_hist)
+	stack_Q_fut  <- addLayer(stack_Q_fut,Q_wm_fut)
 }
-mean_Q_wm <- calc(stack_Q_wm, fun=mean)
+mean_of_var <- log10(calc(stack_Q_fut, fun=mean)) - log10(calc(stack_Q_hist, fun=mean))
 
-#mask grid cells with mean Q below cutoff
-mean_Q_wm <- mean_Q_wm * qm
+inset <- inset_function(mean_of_var)
 
-df_Q_wm_1 <- rasterToPoints(crop(mean_Q_wm,insets_ext[[1]]), spatial=TRUE) %>% as.data.frame()
-df_Q_wm_2 <- rasterToPoints(crop(mean_Q_wm,insets_ext[[2]]), spatial=TRUE) %>% as.data.frame()
-df_Q_wm_3 <- rasterToPoints(crop(mean_Q_wm,insets_ext[[3]]), spatial=TRUE) %>% as.data.frame()
+# plot using same color scheme as Q-max
+Q_wm_plot <- plot_function(inset,color_scheme,br,lab,lim,'Q-wm')
 
-df_Q_wm_1$`Q-wm` <- df_Q_wm_1$Var.1
-df_Q_wm_2$`Q-wm` <- df_Q_wm_2$Var.1
-df_Q_wm_3$`Q-wm` <- df_Q_wm_3$Var.1
+### Q-dm ###
+stack_Q_hist <- stack()
+stack_Q_fut  <- stack()
+for (gcm in climate_models){
+	Q_dm_hist <- raster(paste0(inputdir,'Q-dm/Q-dm_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	Q_dm_fut  <- raster(paste0(inputdir,'Q-dm/Q-dm_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	stack_Q_hist <- addLayer(stack_Q_hist,Q_dm_hist)
+	stack_Q_fut  <- addLayer(stack_Q_fut,Q_dm_fut)
+}
+mean_of_var <- log10(calc(stack_Q_fut, fun=mean)) - log10(calc(stack_Q_hist, fun=mean))
 
-Qwm1 <- ggplot() + geom_raster(data = df_Q_wm_1 , aes(x = x, y = y, fill=`Q-wm`)) + ylab('Q-wm') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.3, -.3, 0, "cm"))
-Qwm2 <- ggplot() + geom_raster(data = df_Q_wm_2 , aes(x = x, y = y, fill=`Q-wm`)) + ylab('') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm"))
-Qwm3 <- ggplot() + geom_raster(data = df_Q_wm_3 , aes(x = x, y = y, fill=`Q-wm`)) + ylab('') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm"))
-    
-### WT-hq
-stack_WT_hq <- stack()
+inset <- inset_function(mean_of_var)
+
+# plot using same color scheme as Q-max
+Q_dm_plot <- plot_function(inset,color_scheme,br,lab,lim,'Q-dm')
+
+### WT-hq ###
+stack_WT_hist <- stack()
+stack_WT_fut  <- stack()
 for (gcm in climate_models){
 	WT_hq_hist <- raster(paste0(inputdir,'WT-hq/WT-hq_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
 	WT_hq_fut  <- raster(paste0(inputdir,'WT-hq/WT-hq_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
-	WT_hq_diff <- WT_hq_fut - WT_hq_hist	
-	stack_WT_hq <- addLayer(stack_WT_hq,WT_hq_diff)
+	stack_WT_hist <- addLayer(stack_WT_hist,WT_hq_hist)
+	stack_WT_fut  <- addLayer(stack_WT_fut,WT_hq_fut)
 }
-mean_WT_hq <- calc(stack_WT_hq, fun=mean)
+mean_of_var <- calc(stack_WT_fut, fun=mean) - calc(stack_WT_hist, fun=mean)
 
-#mask grid cells with mean Q below cutoff
-mean_WT_hq <- mean_WT_hq * qm
+Tbreaks = 0.25
+Tlim_up = 5
+Tlim_lo = -5
 
-df_WT_hq_1 <- rasterToPoints(crop(mean_WT_hq,insets_ext[[1]]), spatial=TRUE) %>% as.data.frame()
-df_WT_hq_2 <- rasterToPoints(crop(mean_WT_hq,insets_ext[[2]]), spatial=TRUE) %>% as.data.frame()
-df_WT_hq_3 <- rasterToPoints(crop(mean_WT_hq,insets_ext[[3]]), spatial=TRUE) %>% as.data.frame()
+mean_of_var[mean_of_var > Tlim_up] <- Tlim_up+Tbreaks
+mean_of_var[mean_of_var < Tlim_lo] <- Tlim_lo-Tbreaks
 
-df_WT_hq_1$`WT-hq` <- df_WT_hq_1$Var.1
-df_WT_hq_2$`WT-hq` <- df_WT_hq_2$Var.1
-df_WT_hq_3$`WT-hq` <- df_WT_hq_3$Var.1
+inset <- inset_function(mean_of_var)
 
-WThq1 <- ggplot() + geom_raster(data = df_WT_hq_1 , aes(x = x, y = y, fill=`WT-hq`)) + ylab('WT-hq') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.3, -.3, 0, "cm"))
-WThq2 <- ggplot() + geom_raster(data = df_WT_hq_2 , aes(x = x, y = y, fill=`WT-hq`)) + ylab('') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm"))
-WThq3 <- ggplot() + geom_raster(data = df_WT_hq_3 , aes(x = x, y = y, fill=`WT-hq`)) + ylab('') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm"))
-    
-ggarrange(
-    ggarrange(Qmax1, Qmax2, Qmax3, 
-          #labels = c("Amazone", "Danube", "Ganges"),
-          common.legend = TRUE, legend = "bottom",
-          ncol = 3, nrow = 1
-          ),
-    ggarrange(Qwm1, Qwm2, Qwm3, 
-          common.legend = TRUE, legend = "bottom",
-          ncol = 3, nrow = 1
-          ),
-    ggarrange(WThq1, WThq2, WThq3, 
-          common.legend = TRUE, legend = "bottom",
-          ncol = 3, nrow = 1
-          ),
-    ncol = 1, nrow = 4)
-    
+#plot
+color_scheme <- inlmisc::GetColors(length(Tlim_lo:Tlim_up),scheme='sunset')
+br <- seq((Tlim_lo-1),(Tlim_up+1),1)
+lab <- paste0(c(paste0('<',Tlim_lo),seq(Tlim_lo,0,1),paste0('+',seq(1,Tlim_up,1)),paste0('>',Tlim_up)),'°C')
+lim <- c(Tlim_lo-1,Tlim_up+1)
 
-### changing legend: #######################
-    
-get_legend<-function(a.gplot){
-  tmp <- ggplot_gtable(ggplot_build(a.gplot))
-  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-  legend <- tmp$grobs[[leg]]
-  return(legend)} 
-  
-Qmax1 <- ggplot() + geom_raster(data = df_Q_max_1 , aes(x = x, y = y, fill=Var.1)) + ylab('Q-max') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.3, -.3, 0, "cm"))
-Qmax2 <- ggplot() + geom_raster(data = df_Q_max_2 , aes(x = x, y = y, fill=Var.1)) + ylab('') + xlab('') + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm"))
-Qmax3 <- ggplot() + geom_raster(data = df_Q_max_3 , aes(x = x, y = y, fill=Var.1)) + ylab('') + xlab('')  + theme(
-    panel.background = element_blank(),plot.margin = margin(-.1, -.1, -.3, -.1, "cm"),legend.title = element_blank(),legend.text = element_text(size=18),legend.position="bottom") 
+WT_hq_plot <- plot_function(inset,color_scheme,br,lab,lim,'WT-hq')
 
-Qmax_legend <- get_legend(Qmax3)
+### WT-cq ###
+stack_WT_hist <- stack()
+stack_WT_fut  <- stack()
+for (gcm in climate_models){
+	WT_cq_hist <- raster(paste0(inputdir,'WT-cq/WT-cq_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	WT_cq_fut  <- raster(paste0(inputdir,'WT-cq/WT-cq_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	stack_WT_hist <- addLayer(stack_WT_hist,WT_cq_hist)
+	stack_WT_fut  <- addLayer(stack_WT_fut,WT_cq_fut)
+}
+mean_of_var <- calc(stack_WT_fut, fun=mean) - calc(stack_WT_hist, fun=mean)
 
-ggarrange(
-    ggarrange(Qmax1 + theme(legend.position="none"), Qmax2 + theme(legend.position="none"), Qmax3 + theme(legend.position="none"), 
-          #labels = c("Amazone", "Danube", "Ganges"),
-          common.legend = TRUE, legend = "bottom",
-          ncol = 3, nrow = 1
-          ),
-    ncol = 1, nrow = 3)
-    
+mean_of_var[mean_of_var > Tlim_up] <- Tlim_up+Tbreaks
+mean_of_var[mean_of_var < Tlim_lo] <- Tlim_lo-Tbreaks
 
+inset <- inset_function(mean_of_var)
+
+WT_cq_plot <- plot_function(inset,color_scheme,br,lab,lim,'WT-cq')
+
+### WT-range ###
+stack_WT_range <- stack()
+for (gcm in climate_models){
+	WT_range_hist <- raster(paste0(inputdir,'WT-range/WT-range_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	WT_range_fut  <- raster(paste0(inputdir,'WT-range/WT-range_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	WT_range_diff <- WT_range_fut - WT_range_hist	
+	stack_WT_range <- addLayer(stack_WT_range,WT_range_diff)
+}
+mean_of_var <- calc(stack_WT_range, fun=mean)
+
+mean_of_var[mean_of_var > Tlim_up] <- Tlim_up+Tbreaks
+mean_of_var[mean_of_var < Tlim_lo] <- Tlim_lo-Tbreaks
+
+inset <- inset_function(mean_of_var)
+
+# plot using same color settings as WT-hq
+WT_range_plot <- plot_function(inset,color_scheme,br,lab,lim,'WT-range')
+
+### WT-mean ###
+stack_WT_mean <- stack()
+for (gcm in climate_models){
+	WT_mean_hist <- raster(paste0(inputdir,'WT-mean/WT-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc4'))
+	WT_mean_fut  <- raster(paste0(inputdir,'WT-mean/WT-mean_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc4'))
+	WT_mean_diff <- WT_mean_fut - WT_mean_hist	
+	stack_WT_mean <- addLayer(stack_WT_mean,WT_mean_diff)
+}
+mean_of_var <- calc(stack_WT_mean, fun=mean)
+
+mean_of_var[mean_of_var > Tlim_up] <- Tlim_up+Tbreaks
+mean_of_var[mean_of_var < Tlim_lo] <- Tlim_lo-Tbreaks
+
+inset <- inset_function(mean_of_var)
+
+WT_mean_plot <- plot_function(inset,color_scheme,br,lab,lim,'WT-mean')
+
+#~ all_plot <- ggarrange(Q_max_plot, Q_wm_plot, WT_hq_plot, WT_range_plot, 
+#~           ncol = 1, nrow = 4
+#~           )
+          
+#~ ggsave('figure4.pdf',all_plot,width = 200,height = 263,dpi = 300,units = 'mm', scale = 5)#, limitsize = F)
+
+ggsave('figure4-Q-max.png',Q_max_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-Q-wm.png',Q_wm_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-Q-dm.png',Q_dm_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-Q-mean.png',Q_mean_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+
+ggsave('figure4-WT-hq.png',WT_hq_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WT-cq.png',WT_cq_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WTrange.png',WT_range_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
+ggsave('figure4-WT-mean.png',WT_mean_plot,width = 75,height = 35,dpi = 300,units = 'mm', scale = 5, limitsize=F)
