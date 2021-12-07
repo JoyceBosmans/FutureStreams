@@ -67,7 +67,7 @@ climate_models <- c('gfdl','hadgem','ipsl','miroc','noresm')
 
 stack_Q_mean <- stack()
 for (gcm in climate_models){
-	Q_mean_hist  <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
+	Q_mean_hist  <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc4'))
 	stack_Q_mean <- addLayer(stack_Q_mean,Q_mean_hist)
 }
 mean_Q_mean <- calc(stack_Q_mean, fun=mean)
@@ -108,8 +108,8 @@ Q_max_plot <- plot_function(inset,color_scheme,br,lab,lim,'Q-max')
 stack_Q_hist <- stack()
 stack_Q_fut  <- stack()
 for (gcm in climate_models){
-	Q_mean_hist  <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc'))
-	Q_mean_fut   <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc'))
+	Q_mean_hist  <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_hist_1976-01-31_to_2005-12-31.nc4'))
+	Q_mean_fut   <- raster(paste0(inputdir,'Q-mean/Q-mean_',gcm,'_rcp8p5_2081-01-31_to_2099-12-31.nc4'))
 	stack_Q_hist <- addLayer(stack_Q_hist,Q_mean_hist)
 	stack_Q_fut  <- addLayer(stack_Q_fut,Q_mean_fut)
 }
