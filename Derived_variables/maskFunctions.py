@@ -96,15 +96,11 @@ def computeBioClimVariable(model, scen, clim):
 ######################################################
 def createMaskQ(inputfile,outputfile,threshold):
   data = getNCData(inputfile, varName = 'discharge')
-  print(type(data))
-  print(data.shape)
   # set all land points to 1, then to nan if threshold is met. 
   mask = np.ones(data.shape)
-  print(mask.mean())
+  print(data.mean())
   #mask = np.ma.masked_where(data==MV,mask) #keep only land points. Missing Value set at top of script
   mask = np.ma.masked_where(data < Qthreshold,mask)	#this already excludes ocean points
-  #mask[data == MV] = np.nan 	#keep only land points. Missing Value set at top of script
-  #mask[data < Qthreshold] = np.nan
   print(mask)
   print(mask.shape)
   

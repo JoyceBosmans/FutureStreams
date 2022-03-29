@@ -8,8 +8,6 @@ import multiprocessing as mp
 ### Created by Niko Wanders (n.wanders@uu.nl) and Joyce Bosmans (joyce.bosmans@ru.nl)
 ### in- and output directories and thresholds are set in maskFunctions.py. Subdirectories per variable in the output directory are to be created prior to running these scripts. 
 
-os.system('module load cdo')
-
 modelS        = ["gfdl", "hadgem", "ipsl", "miroc", "noresm","E2O"]	
 scenS         = ["hist", "rcp2p6", "rcp4p5", "rcp6p0", "rcp8p5"]
 
