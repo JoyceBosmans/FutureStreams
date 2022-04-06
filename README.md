@@ -3,6 +3,7 @@ Scripts used for PCR-GLOBWB 5arcmin discharge and water temperature simulations 
 
 Derived_variables:
 Python code used to create the ecologically relevant derived variables. 
+Also scripts to create a mask for pixels with unrealistic values from derived variables (mask_unrealistic_values.py and maskFunctions.py), and scripts to mask unrealistic values from weekly Q and WT (mask_unrealistic_values_weekly.py and maskFunctions_weekly.py). A user can set their preferred threshold values in the maskFunctions* script. 
 
 Figures:
 R code used to create Figure 4. R code for the other figures is available through https://github.com/vbarbarossa/futurestreams_figures. 

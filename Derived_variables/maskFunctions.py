@@ -11,9 +11,8 @@ import uuid
 indir   = '/vol/milkundata/FutureStreams'
 outdir  = '/vol/milkundata/FutureStreams'
 
-Qthreshold  = [10]		# m3/s, grid cells with Q-mean < Q-threshold will be masked in Q-mask
-WTthreshold = [350]  	# K, grid cells with WT-threshold < WT-mean will be masked in WT-mask
-MV          = [1e+20]	# Missing value
+Qthreshold  = 10	# m3/s, grid cells with Q-mean < Q-threshold will be masked in Q-mask
+WTthreshold = 350  	# K, grid cells with WT-threshold < WT-mean will be masked in WT-mask
 
 ########## General settings #############
 futureStart   = [2021, 2041, 2061, 2081]
@@ -81,14 +80,14 @@ def computeBioClimVariable(model, scen, clim):
     varName = "discharge"
     for inputfile, start, end in zip(makeAnnualFileName(varName, model, scen), getStartTimes(model, scen), getEndTimes(scen)):
       inputfile  = '%s/%s/%s_%s_%s_%d-01-31_to_%d-12-31.nc4' %(outdir,'Q-mean','Q-mean',model,scen,start,end)
-      outputfile = '%s/%s/%s_%s_%s_%d-01-31_to_%d-12-31.nc' %(outdir,clim,clim,model,scen,start,end)
+      outputfile = '%s/%s/%s_%s_%s_%d-01-31_to_%d-12-31_%d.nc' %(outdir,clim,clim,model,scen,start,end,Qthreshold)
       print("%s %s %s %d" %(clim, model, scen, start))
       createMaskQ(inputfile,outputfile,Qthreshold)
   if clim in ["WT-mask"]:
     varName = "waterTemp"
     for inputfile, start, end in zip(makeAnnualFileName(varName, model, scen), getStartTimes(model, scen), getEndTimes(scen)):
       inputfile  = '%s/%s/%s_%s_%s_%d-01-31_to_%d-12-31.nc4' %(outdir,'WT-mean','WT-mean',model,scen,start,end)
-      outputfile = '%s/%s/%s_%s_%s_%d-01-31_to_%d-12-31.nc' %(outdir,clim,clim,model,scen,start,end)
+      outputfile = '%s/%s/%s_%s_%s_%d-01-31_to_%d-12-31_%d.nc' %(outdir,clim,clim,model,scen,start,end,WTthreshold)
       print("%s %s %s %d" %(clim, model, scen, start))
       createMaskWT(inputfile,outputfile,WTthreshold)
 
@@ -99,11 +98,7 @@ def createMaskQ(inputfile,outputfile,threshold):
   # set all land points to 1, then to nan if threshold is met. 
   mask = np.ones(data.shape)
   print(data.mean())
-  #mask = np.ma.masked_where(data==MV,mask) #keep only land points. Missing Value set at top of script
   mask = np.ma.masked_where(data < Qthreshold,mask)	#this already excludes ocean points
-  print(mask)
-  print(mask.shape)
-  
   latitudes  = getNCData(inputfile, varName = "latitude")
   longitudes = getNCData(inputfile, varName = "longitude")
   createNetCDFNoTime(outputfile, "mask", "-", latitudes, longitudes)

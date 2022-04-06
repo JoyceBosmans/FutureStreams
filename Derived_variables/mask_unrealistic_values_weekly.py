@@ -11,9 +11,9 @@ import multiprocessing as mp
 modelS        = ["gfdl", "hadgem", "ipsl", "miroc", "noresm","E2O"]	
 scenS         = ["hist", "rcp2p6", "rcp4p5", "rcp6p0", "rcp8p5"]
 
-###alternatively, specify model, scenario in command line:
-modelS        = [sys.argv[1]]
-scenS         = [sys.argv[2]]
+# ~ ###alternatively, specify model, scenario in command line:
+# ~ modelS        = [sys.argv[1]]
+# ~ scenS         = [sys.argv[2]]
 
 climVars = ['Q-mask-weekly','WT-mask-weekly']
 
